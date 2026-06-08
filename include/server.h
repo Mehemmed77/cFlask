@@ -1,6 +1,6 @@
 #ifndef  CFLASK_H
 #define CFLASK_H
 
-void hello(void);
+void server(void);
 
 #endif

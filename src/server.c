@@ -8,6 +8,30 @@
 #include "../include/server.h"
 #define PORT 8080
 
+typedef struct {
+    unsigned int status_code;
+    char* status_text;
+    char* content_type;
+    char* body;
+} http_response;
+
+char* http_response_serialize(http_response* response) {
+    
+    int BUFFER_SIZE = snprintf(NULL, 0,
+        "HTTP/1.1 %u %s\r\nContent-Type: %s\r\nContent-Length: %d\r\n\r\n%s",
+        response->status_code, response->status_text, response->content_type, strlen(response->body), response->body
+    );
+
+    char* response_buffer = malloc((BUFFER_SIZE + 1) * sizeof(char));
+
+    snprintf(response_buffer, BUFFER_SIZE + 1,
+        "HTTP/1.1 %u %s\r\nContent-Type: %s\r\nContent-Length: %d\r\n\r\n%s",
+        response->status_code, response->status_text, response->content_type, strlen(response->body), response->body
+    );
+
+    return response_buffer;
+}
+
 void server()
 {
     size_t BUFFER_SIZE = 1024;
@@ -55,8 +79,14 @@ void server()
 
         printf("%s\n", buffer);
 
-        char *reply = "Aleykum Salam";
-        send(client_fd, reply, strlen(reply), 0);
+        http_response* response = malloc(sizeof(http_response));
+        response->status_code = 200;       
+        response->status_text = "OK";       
+        response->content_type = "text/plain";       
+        response->body = "Salam";       
+
+        char *raw_response = http_response_serialize(response);
+        send(client_fd, raw_response, strlen(raw_response), 0);
     }
 }
 

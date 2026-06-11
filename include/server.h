@@ -1,6 +1,6 @@
-#ifndef  CFLASK_H
-#define CFLASK_H
+#ifndef SERVER_H
+#define SERVER_H
 
-void server(void);
+void server_run(int PORT);
 
 #endif

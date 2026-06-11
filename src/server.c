@@ -5,35 +5,64 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <stdbool.h>
 #include "../include/server.h"
-#define PORT 8080
+#include "../include/connection.h"
+#include "../include/http.h"
 
-typedef struct {
-    unsigned int status_code;
-    char* status_text;
-    char* content_type;
-    char* body;
-} http_response;
+void handle_client(int client_fd) {
+    byte_buffer_t* byte_buffer = NULL;
+    http_response_t* response = NULL;
+    char* raw_response = NULL;
+    size_t response_length;
+    size_t total_sent;
 
-char* http_response_serialize(http_response* response) {
-    
-    int BUFFER_SIZE = snprintf(NULL, 0,
-        "HTTP/1.1 %u %s\r\nContent-Type: %s\r\nContent-Length: %d\r\n\r\n%s",
-        response->status_code, response->status_text, response->content_type, strlen(response->body), response->body
-    );
+    byte_buffer = connection_receive_request(client_fd);
+    if (byte_buffer == NULL) {
+        perror("Failed to receive HTTP request");
+        goto cleanup;
+    }
 
-    char* response_buffer = malloc((BUFFER_SIZE + 1) * sizeof(char));
+    printf("%s\n", byte_buffer->buffer);
 
-    snprintf(response_buffer, BUFFER_SIZE + 1,
-        "HTTP/1.1 %u %s\r\nContent-Type: %s\r\nContent-Length: %d\r\n\r\n%s",
-        response->status_code, response->status_text, response->content_type, strlen(response->body), response->body
-    );
+    response = http_response_create(200, "OK", "text/plain", "SALAM\n");
+    if (response == NULL) {
+        perror("Failed to create HTTP response");
+        goto cleanup;
+    }
 
-    return response_buffer;
+    raw_response = http_response_serialize(response);
+    if (raw_response == NULL) {
+        perror("Failed to serialize HTTP response");
+        goto cleanup;
+    }
+
+    response_length = strlen(raw_response);
+    total_sent = 0;
+
+    while (total_sent < response_length) {
+        ssize_t bytes_sent = send(client_fd,
+                                  raw_response + total_sent,
+                                  response_length - total_sent,
+                                  0);
+        if (bytes_sent < 0) {
+            perror("Failed to send HTTP response");
+            goto cleanup;
+        }
+
+        total_sent += (size_t) bytes_sent;
+    }
+
+cleanup:
+    if (client_fd >= 0) {
+        close(client_fd);
+    }
+    connection_free(byte_buffer);
+    http_free(response);
+    free(raw_response);
 }
 
-void server()
-{
+void server_run(int PORT) {
     size_t BUFFER_SIZE = 1024;
     struct sockaddr_in address;
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -46,12 +75,6 @@ void server()
     address.sin_family = AF_INET;
     address.sin_port = htons(PORT);
     address.sin_addr.s_addr = INADDR_ANY;
-
-    // int status = inet_pton(AF_INET, "127.0.0.1", &address.sin_addr);
-    // if(status < 0) {
-    //     if (status == 0) printf("Invalid IP address string format\n");
-    //     else perror("inet_pton failed");
-    // }
 
     if(bind(server_fd, (struct sockaddr*) &address, sizeof(address)) < 0) {
         perror("Bind failed , port might be already be in use!");
@@ -72,26 +95,17 @@ void server()
 
         int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_addr_len);
 
-        char *buffer = malloc(BUFFER_SIZE * sizeof(char));
-        
-        int bytes_received = recv(client_fd, buffer, BUFFER_SIZE, 0);
-        buffer[bytes_received] = '\0';
+        if(client_fd < 0) {
+            perror("Accept failed");
+            continue;
+        }
 
-        printf("%s\n", buffer);
-
-        http_response* response = malloc(sizeof(http_response));
-        response->status_code = 200;       
-        response->status_text = "OK";       
-        response->content_type = "text/plain";       
-        response->body = "Salam";       
-
-        char *raw_response = http_response_serialize(response);
-        send(client_fd, raw_response, strlen(raw_response), 0);
+        handle_client(client_fd);
     }
 }
 
 int main() {
-    server();
+    server_run(8080);
 
     return 0;
 }

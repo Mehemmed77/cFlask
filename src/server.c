@@ -53,13 +53,14 @@ void handle_client(int client_fd) {
         total_sent += (size_t) bytes_sent;
     }
 
-cleanup:
-    if (client_fd >= 0) {
-        close(client_fd);
-    }
-    connection_free(byte_buffer);
-    http_free(response);
-    free(raw_response);
+    cleanup:
+        if (client_fd >= 0) {
+            close(client_fd);
+        }
+
+        connection_free(byte_buffer);
+        http_free(response);
+        free(raw_response);
 }
 
 void server_run(int PORT) {

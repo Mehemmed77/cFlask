@@ -62,6 +62,7 @@ byte_buffer_t* connection_receive_request(int client_fd) {
 }
 
 void connection_free(byte_buffer_t* byte_buffer) {
+    if(byte_buffer == NULL) return;
     free(byte_buffer->buffer);
     free(byte_buffer);
 }

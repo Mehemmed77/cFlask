@@ -59,9 +59,7 @@ http_response_t* http_response_create(
 }
 
 void http_free(http_response_t* response) {
-    if (!response) {
-        return;
-    }
+    if (!response) return;
 
     free(response->status_text);
     free(response->content_type);

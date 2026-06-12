@@ -23,6 +23,7 @@ void handle_client(int client_fd) {
         goto cleanup;
     }
 
+    http_request_line_t* http_request_line = http_request_create(byte_buffer->buffer);
     printf("%s\n", byte_buffer->buffer);
 
     response = http_response_create(200, "OK", "text/plain", "SALAM\n");
@@ -59,7 +60,8 @@ void handle_client(int client_fd) {
         }
 
         connection_free(byte_buffer);
-        http_free(response);
+        http_response_free(response);
+        http_request_line_free(http_request_line);
         free(raw_response);
 }
 

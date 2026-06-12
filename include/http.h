@@ -8,8 +8,15 @@ typedef struct {
     char* body;
 } http_response_t;
 
+typedef struct {
+    char *method;
+    char *path;
+    char *version;
+} http_request_line_t;
+
 char* http_response_serialize(const http_response_t* response);
-void http_free(http_response_t* response);
+void http_response_free(http_response_t* response);
+void http_request_line_free(http_request_line_t* http_request_line);
 
 http_response_t* http_response_create(
     int status,
@@ -17,5 +24,7 @@ http_response_t* http_response_create(
     const char *type,
     const char *body
 );
+
+http_request_line_t* http_request_create(const char* raw_request);
 
 #endif

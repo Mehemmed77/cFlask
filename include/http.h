@@ -21,7 +21,7 @@ typedef struct {
 
 typedef struct {
     http_request_line_t* http_request_line;
-    http_header_t *headers;
+    http_header_t** headers;
     size_t header_count;
     char *body;
 } http_request_t;

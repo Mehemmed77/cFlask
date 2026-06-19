@@ -93,6 +93,8 @@ static void trim_inplace(char* s) {
 http_header_t* parse_http_header(char* line) {
     char* colon = strchr(line, ':');
 
+    printf("%s", line);
+
     if(!colon) return NULL;
 
     *colon = '\0';
@@ -130,7 +132,7 @@ size_t check_for_body_length(http_header_t** headers, size_t size) {
     return 0;
 }
 
-char* parse_http_request_body(char* raw_request, size_t body_length) {
+char* parse_http_request_body(const char* raw_request, size_t body_length) {
     const char* raw_body = NULL;
 
     if(raw_request) {
@@ -155,23 +157,33 @@ char* parse_http_request_body(char* raw_request, size_t body_length) {
 
 // UTILITIES END
 
+void http_request_headers_free(http_header_t** headers, size_t size) {
+    for (size_t i = 0; i < size; i++) {
+        if (headers[i]) {
+            free(headers[i]->name);
+            free(headers[i]->value);
+            free(headers[i]);
+        }
+    }
+
+    free(headers);
+}
+
+http_request_line_t* return_parsed_http_line(char* str) {
+
+}
+
 http_request_t* http_request_create(const char* raw_request) {
     http_request_t* http_request = NULL;
     http_header_t** headers = NULL;
-    http_header_t* http_header = NULL;
-    
-    size_t count = 0;
+    http_header_t* http_header = NULL; 
 
-    const char* delimiter = "\r\n";
     char* source = strdup(raw_request);
 
-    // Ensure that token ends before reaching body
     char* body_start = strstr(source, "\r\n\r\n");
     if (body_start) {
         *body_start = '\0';
     }
-
-    char* token = strtok(source, delimiter);
 
     http_request = malloc(sizeof(http_request_t));
 
@@ -179,24 +191,36 @@ http_request_t* http_request_create(const char* raw_request) {
         perror("Failed to allocate memory for http_request");
         goto cleanup;
     }
-    
+
     headers = malloc(5* sizeof(*headers));
-    
+
     if(headers == NULL) {
         perror("Failed to allocate memory for headers");
         goto cleanup;
     }
-    
+
     size_t capacity = INITIAL_HEADERS;
 
     http_request->http_request_line = parse_request_line(token);
+
     if (!http_request->http_request_line) {
         goto cleanup;
     }
-    
+
     token = strtok(NULL, delimiter);
 
+    size_t header_index = 0;
+
     while(token != NULL) {
+        if(header_index == 4) break;
+
+        if(strlen(token) == 0) {
+            printf("%s", token);
+            fflush(stdout);
+            token = strtok(NULL, delimiter);
+            continue;
+        }
+
         http_header = parse_http_header(token);
 
         if (!http_header) {
@@ -204,7 +228,7 @@ http_request_t* http_request_create(const char* raw_request) {
             goto cleanup;
         }
         
-        if ((size_t) count >= capacity) {
+        if ((size_t) header_index >= capacity) {
             capacity *= 2;
             http_header_t** temp = realloc(headers, capacity * sizeof(*headers));
 
@@ -219,15 +243,14 @@ http_request_t* http_request_create(const char* raw_request) {
             headers = temp;
         }
 
-        headers[count - 1] = http_header;
+        headers[header_index] = http_header;
         
-        printf("Token: %s\n", token);
         token = strtok(NULL, delimiter);
-        count++;
+        header_index++;
     }
 
     http_request->headers = headers;
-    http_request->header_count = count;
+    http_request->header_count = header_index;
 
     size_t body_length = check_for_body_length(headers, http_request->header_count);
 
@@ -244,7 +267,7 @@ http_request_t* http_request_create(const char* raw_request) {
             free(http_request->body);
             free(http_request);
         }
-        if (headers) http_request_headers_free(headers, count);
+        if (headers) http_request_headers_free(headers, header_index);
         free(source);
         return NULL;
 }
@@ -275,18 +298,6 @@ http_response_t* http_response_create(
     return response;
 }
 
-void http_request_headers_free(http_header_t** headers, size_t size) {
-    for (size_t i = 0; i < size; i++) {
-        if (headers[i]) {
-            free(headers[i]->name);
-            free(headers[i]->value);
-            free(headers[i]);
-        }
-    }
-
-    free(headers);
-}
-
 void http_request_free(http_request_t* http_request) {
     if(http_request == NULL) return;
 
@@ -295,7 +306,6 @@ void http_request_free(http_request_t* http_request) {
     http_request_line_free(http_request->http_request_line);
     free(http_request);
 }
-
 
 void http_response_free(http_response_t* response) {
     if (!response) return;

@@ -61,7 +61,7 @@ void handle_client(int client_fd) {
 
         connection_free(byte_buffer);
         http_response_free(response);
-        http_request_free(http_request);
+        // http_request_free(http_request);
         // http_request_line_free(http_request_line);
         free(raw_response);
 }

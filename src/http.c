@@ -155,6 +155,86 @@ char* parse_http_request_body(const char* raw_request, size_t body_length) {
     return body_copy;
 }
 
+http_request_bounds_t* http_parse_boundaries(const char* raw_request) {
+    http_request_bounds_t* http_request_bounds = malloc(sizeof(http_request_bounds_t));
+
+    if(http_request_bounds == NULL) {
+        perror("Failed to allocate memory for http request bounds");
+        goto cleanup;
+    }
+
+    size_t capacity = INITIAL_HEADERS;
+    http_request_bounds->headers = malloc(INITIAL_HEADERS * sizeof(http_header_bounds_t));
+
+    if(http_request_bounds->headers == NULL) {
+        perror("Failed to allocate memory for http header bounds");
+        goto cleanup;
+    }
+
+    const char* ptr = raw_request;
+    const char* request_line_start = raw_request;
+    size_t request_line_len = 0;
+
+    while(*ptr != '\0' && *ptr != '\r' && *(ptr + 1) != '\n') {
+        request_line_len++;
+        ptr++;
+    }
+
+    ptr += 2;
+
+    http_request_bounds->request_line_start = request_line_start;
+    http_request_bounds->request_line_len = request_line_len;
+
+    size_t len = 0;
+    size_t header_count = 0;
+    
+    while(
+        *ptr != '\0' && 
+        !(ptr[0] == '\r' && ptr[1] == '\n' && ptr[2] == '\r' && ptr[3] == '\n')
+    ) {
+
+        if(header_count >= capacity) {
+            capacity *= 2;
+            http_header_bounds_t* temp = realloc(http_request_bounds->headers, capacity);
+            if (temp == NULL) {
+                perror("Failed to reallocate memory for http header bounds");
+                goto cleanup;
+            }
+            http_request_bounds->headers = temp;
+        }
+
+        http_request_bounds->headers[header_count].start = ptr;
+        
+        while(!(*ptr == '\r' && *(ptr + 1) == '\n')) {
+            ptr++;
+            len++;
+        }
+        
+        http_request_bounds->headers[header_count].len = len;
+
+        len = 0;
+        ptr += 2;
+
+        header_count++;
+    }
+
+    ptr += 4;
+    
+    http_request_bounds->headers->len = len;
+    http_request_bounds->header_count = header_count;
+    http_request_bounds->body_start = ptr;
+    http_request_bounds->body_len = strlen(ptr);
+
+    return http_request_bounds;
+
+cleanup:
+    if (http_request_bounds) {
+        free(http_request_bounds->headers);
+        free(http_request_bounds);
+    }
+    return NULL;
+}
+
 // UTILITIES END
 
 void http_request_headers_free(http_header_t** headers, size_t size) {
@@ -169,107 +249,34 @@ void http_request_headers_free(http_header_t** headers, size_t size) {
     free(headers);
 }
 
-http_request_line_t* return_parsed_http_line(char* str) {
-
-}
-
 http_request_t* http_request_create(const char* raw_request) {
-    http_request_t* http_request = NULL;
-    http_header_t** headers = NULL;
-    http_header_t* http_header = NULL; 
+    http_request_bounds_t* req = http_parse_boundaries(raw_request);
 
-    char* source = strdup(raw_request);
+    printf("=== HTTP REQUEST BOUNDS ===\n");
 
-    char* body_start = strstr(source, "\r\n\r\n");
-    if (body_start) {
-        *body_start = '\0';
+    printf("request_line_len = %zu\n", req->request_line_len);
+    printf("request_line     = '%.*s'\n",
+           (int)req->request_line_len,
+           req->request_line_start);
+
+    printf("header_count     = %zu\n", req->header_count);
+
+    for (size_t i = 0; i < req->header_count; i++) {
+        printf("header[%zu] len=%zu value='%.*s'\n",
+               i,
+               req->headers[i].len,
+               (int)req->headers[i].len,
+               req->headers[i].start);
     }
 
-    http_request = malloc(sizeof(http_request_t));
+    printf("body_len         = %zu\n", req->body_len);
+    printf("body             = '%.*s'\n",
+           (int)req->body_len,
+           req->body_start ? req->body_start : "");
 
-    if(http_request == NULL) {
-        perror("Failed to allocate memory for http_request");
-        goto cleanup;
-    }
+    printf("===========================\n");
 
-    headers = malloc(5* sizeof(*headers));
-
-    if(headers == NULL) {
-        perror("Failed to allocate memory for headers");
-        goto cleanup;
-    }
-
-    size_t capacity = INITIAL_HEADERS;
-
-    http_request->http_request_line = parse_request_line(token);
-
-    if (!http_request->http_request_line) {
-        goto cleanup;
-    }
-
-    token = strtok(NULL, delimiter);
-
-    size_t header_index = 0;
-
-    while(token != NULL) {
-        if(header_index == 4) break;
-
-        if(strlen(token) == 0) {
-            printf("%s", token);
-            fflush(stdout);
-            token = strtok(NULL, delimiter);
-            continue;
-        }
-
-        http_header = parse_http_header(token);
-
-        if (!http_header) {
-            perror("Header couldn't be parsed");
-            goto cleanup;
-        }
-        
-        if ((size_t) header_index >= capacity) {
-            capacity *= 2;
-            http_header_t** temp = realloc(headers, capacity * sizeof(*headers));
-
-            if (temp == NULL) {
-                perror("Reallocation failed");
-                free(http_header->name);
-                free(http_header->value);
-                free(http_header);
-                goto cleanup;
-            }
-            
-            headers = temp;
-        }
-
-        headers[header_index] = http_header;
-        
-        token = strtok(NULL, delimiter);
-        header_index++;
-    }
-
-    http_request->headers = headers;
-    http_request->header_count = header_index;
-
-    size_t body_length = check_for_body_length(headers, http_request->header_count);
-
-    http_request->body = parse_http_request_body(raw_request, body_length);
-
-    free(source);
-    return http_request;
-
-    cleanup:
-        if (http_request) {
-            if (http_request->http_request_line) {
-                http_request_line_free(http_request->http_request_line);
-            }
-            free(http_request->body);
-            free(http_request);
-        }
-        if (headers) http_request_headers_free(headers, header_index);
-        free(source);
-        return NULL;
+    return NULL;
 }
 
 http_response_t* http_response_create(
@@ -297,6 +304,13 @@ http_response_t* http_response_create(
 
     return response;
 }
+
+// void http_request_bounds_free(http_request_bounds_t* http_request_bounds) {
+//     if (!http_request_bounds) return;
+    
+//     free(http_request_bounds->headers);
+//     free(http_request_bounds);
+// }
 
 void http_request_free(http_request_t* http_request) {
     if(http_request == NULL) return;

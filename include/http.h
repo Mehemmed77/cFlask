@@ -46,7 +46,7 @@ char* http_response_serialize(const http_response_t* response);
 void http_response_free(http_response_t* response);
 void http_request_line_free(http_request_line_t* http_request_line);
 
-http_request_bounds_t* http_parse_boundaries(const char* raw_request);
+http_request_bounds_t* http_parse_boundaries(const char* buf, size_t raw_request_len);
 
 http_response_t* http_response_create(
     int status,
@@ -55,7 +55,7 @@ http_response_t* http_response_create(
     const char *body
 );
 
-http_request_t* http_request_create(const char* raw_request);
+http_request_t* http_request_create(const char* raw_request, size_t raw_request_len);
 void http_request_free(http_request_t* request);
 
 #endif

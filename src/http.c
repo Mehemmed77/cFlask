@@ -37,7 +37,7 @@ char* http_response_serialize(const http_response_t* response) {
     return response_buffer;
 }
 
-http_request_line_t* parse_request_line(const char* raw_request_line) {
+http_request_line_t* parse_request_line (char* raw_request_line) {
     if(raw_request_line == NULL) return NULL;
     
     http_request_line_t* http_request_line = malloc(sizeof(http_request_line_t));
@@ -155,7 +155,7 @@ char* parse_http_request_body(const char* raw_request, size_t body_length) {
     return body_copy;
 }
 
-http_request_bounds_t* http_parse_boundaries(const char* raw_request) {
+http_request_bounds_t* http_parse_boundaries(const char* buf, size_t buf_len) {
     http_request_bounds_t* http_request_bounds = malloc(sizeof(http_request_bounds_t));
 
     if(http_request_bounds == NULL) {
@@ -171,11 +171,13 @@ http_request_bounds_t* http_parse_boundaries(const char* raw_request) {
         goto cleanup;
     }
 
-    const char* ptr = raw_request;
-    const char* request_line_start = raw_request;
+    const char* ptr = buf;
+    const char* end = buf + buf_len;
+
+    const char* request_line_start = buf;
     size_t request_line_len = 0;
 
-    while(*ptr != '\0' && *ptr != '\r' && *(ptr + 1) != '\n') {
+    while(ptr + 1 < end && !(ptr[0] == '\r' && ptr[1] == '\n')) {
         request_line_len++;
         ptr++;
     }
@@ -189,13 +191,16 @@ http_request_bounds_t* http_parse_boundaries(const char* raw_request) {
     size_t header_count = 0;
     
     while(
-        *ptr != '\0' && 
+        ptr + 3 < end &&
         !(ptr[0] == '\r' && ptr[1] == '\n' && ptr[2] == '\r' && ptr[3] == '\n')
     ) {
 
+        if (ptr + 1 >= end || (*ptr == '\r' && ptr[1] == '\n')) break;
+
+        printf("%c\n", *ptr);
         if(header_count >= capacity) {
             capacity *= 2;
-            http_header_bounds_t* temp = realloc(http_request_bounds->headers, capacity);
+            http_header_bounds_t* temp = realloc(http_request_bounds->headers, capacity * sizeof(http_header_bounds_t));
             if (temp == NULL) {
                 perror("Failed to reallocate memory for http header bounds");
                 goto cleanup;
@@ -205,7 +210,7 @@ http_request_bounds_t* http_parse_boundaries(const char* raw_request) {
 
         http_request_bounds->headers[header_count].start = ptr;
         
-        while(!(*ptr == '\r' && *(ptr + 1) == '\n')) {
+        while(ptr + 1 < end && !(*ptr == '\r' && *(ptr + 1) == '\n')) {
             ptr++;
             len++;
         }
@@ -220,7 +225,6 @@ http_request_bounds_t* http_parse_boundaries(const char* raw_request) {
 
     ptr += 4;
     
-    http_request_bounds->headers->len = len;
     http_request_bounds->header_count = header_count;
     http_request_bounds->body_start = ptr;
     http_request_bounds->body_len = strlen(ptr);
@@ -249,8 +253,8 @@ void http_request_headers_free(http_header_t** headers, size_t size) {
     free(headers);
 }
 
-http_request_t* http_request_create(const char* raw_request) {
-    http_request_bounds_t* req = http_parse_boundaries(raw_request);
+http_request_t* http_request_create(const char* raw_request, size_t raw_request_len) {
+    http_request_bounds_t* req = http_parse_boundaries(raw_request, raw_request_len);
 
     printf("=== HTTP REQUEST BOUNDS ===\n");
 
@@ -276,7 +280,35 @@ http_request_t* http_request_create(const char* raw_request) {
 
     printf("===========================\n");
 
-    return NULL;
+    char* req_line = malloc(sizeof(char) * (req->request_line_len + 1));
+    memcpy(req_line, req->request_line_start, req->request_line_len);
+
+    http_request_line_t* request_line = parse_request_line(req_line);
+
+    http_header_t** headers = malloc(req->header_count * sizeof(*headers));
+
+    for(int i = 0; i < req->header_count; i++) {
+        char* header_line = malloc(sizeof(char) * (req->headers[i].len + 1));
+
+        memcpy(header_line, req->headers[i].start, req->headers[i].len);
+
+        http_header_t* header = parse_http_header(header_line);
+        headers[i] = header;
+    }
+
+    char* body = parse_http_request_body(req->body_start, req->body_len);
+
+    http_request_t* request = malloc(sizeof(http_request_t));
+
+    request->body = body;
+    request->http_request_line = request_line;
+    request->headers = headers;
+    request->header_count = req->header_count;
+
+    printf("Method: %s, Path: %s, Version: %s", request_line->method, request_line->path, request_line->version);
+    fflush(stdout);
+
+    return request;
 }
 
 http_response_t* http_response_create(

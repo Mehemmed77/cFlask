@@ -23,8 +23,34 @@ void handle_client(int client_fd) {
         goto cleanup;
     }
 
-    http_request_t* http_request = http_request_create(byte_buffer->buffer);
-    // printf("%s\n", byte_buffer->buffer);
+    printf("%s\n", byte_buffer->buffer);
+    http_request_t* http_request = http_request_create(byte_buffer->buffer, byte_buffer->length);
+
+    printf("=== HTTP REQUEST ===\n");
+
+    printf("Method  : %s\n",
+        http_request->http_request_line->method);
+
+    printf("Path    : %s\n",
+        http_request->http_request_line->path);
+
+    printf("Version : %s\n",
+        http_request->http_request_line->version);
+
+    printf("Headers (%zu)\n",
+        http_request->header_count);
+
+    for (size_t i = 0; i < http_request->header_count; i++) {
+        printf("[%zu] %s: %s\n",
+            i,
+            http_request->headers[i]->name,
+            http_request->headers[i]->value);
+    }
+
+    printf("Body:\n%s\n",
+        http_request->body ? http_request->body : "(null)");
+
+    printf("====================\n");
 
     response = http_response_create(200, "OK", "text/plain", "SALAM\n");
     if (response == NULL) {
@@ -109,7 +135,7 @@ void server_run(int PORT) {
 }
 
 int main() {
-    server_run(8081);
+    server_run(8080);
 
     return 0;
 }

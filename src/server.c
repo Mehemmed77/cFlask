@@ -11,9 +11,9 @@
 #include "../include/http.h"
 
 void handle_client(int client_fd) {
+    char* raw_response = NULL;
     byte_buffer_t* byte_buffer = NULL;
     http_response_t* response = NULL;
-    char* raw_response = NULL;
     size_t response_length;
     size_t total_sent;
 
@@ -23,34 +23,7 @@ void handle_client(int client_fd) {
         goto cleanup;
     }
 
-    printf("%s\n", byte_buffer->buffer);
-    http_request_t* http_request = http_request_create(byte_buffer->buffer, byte_buffer->length);
-
-    printf("=== HTTP REQUEST ===\n");
-
-    printf("Method  : %s\n",
-        http_request->http_request_line->method);
-
-    printf("Path    : %s\n",
-        http_request->http_request_line->path);
-
-    printf("Version : %s\n",
-        http_request->http_request_line->version);
-
-    printf("Headers (%zu)\n",
-        http_request->header_count);
-
-    for (size_t i = 0; i < http_request->header_count; i++) {
-        printf("[%zu] %s: %s\n",
-            i,
-            http_request->headers[i]->name,
-            http_request->headers[i]->value);
-    }
-
-    printf("Body:\n%s\n",
-        http_request->body ? http_request->body : "(null)");
-
-    printf("====================\n");
+    // http_request_t* http_request = http_request_create(byte_buffer->buffer, byte_buffer->length);
 
     response = http_response_create(200, "OK", "text/plain", "SALAM\n");
     if (response == NULL) {
@@ -80,6 +53,7 @@ void handle_client(int client_fd) {
         total_sent += (size_t) bytes_sent;
     }
 
+    printf("salam");
     cleanup:
         if (client_fd >= 0) {
             close(client_fd);
@@ -93,7 +67,6 @@ void handle_client(int client_fd) {
 }
 
 void server_run(int PORT) {
-    size_t BUFFER_SIZE = 1024;
     struct sockaddr_in address;
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 

@@ -3,25 +3,28 @@ CC = gcc
 CFLAGS = -Wall -Wextra -pedantic -g -fsanitize=address
 INCLUDES = -Iinclude
 
-SRC_DIR = src
-OBJ_DIR = build
+SERVER = compiled/server
 
-SRC = $(wildcard $(SRC_DIR)/*.c)
-OBJ = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC))
+HTTP_SRC = \
+	src/http_request.c \
+	src/http_request_parser.c \
+	src/http_response.c \
+	src/http_bounds.c \
+	src/http_utils.c
 
-LIB = libcflask.a
+SERVER_SRC = \
+	src/server.c \
+	src/connection.c
 
-all: $(LIB)
+SRC = $(SERVER_SRC) $(HTTP_SRC)
 
-$(LIB): $(OBJ)
-	ar rcs $@ $^
+all: $(SERVER)
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	mkdir -p $(OBJ_DIR)
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+$(SERVER): $(SRC)
+	mkdir -p compiled
+	$(CC) $(CFLAGS) $(INCLUDES) $(SRC) -o $(SERVER)
 
 clean:
-	rm -rf $(OBJ_DIR)
-	rm -f $(LIB)
+	rm -f $(SERVER)
 
 .PHONY: all clean

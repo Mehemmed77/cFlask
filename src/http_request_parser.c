@@ -1,0 +1,154 @@
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <stdbool.h>
+#include "../include/http.h"
+
+char* parse_http_request_body(const char* raw_request, size_t body_length) {
+    const char* raw_body = NULL;
+
+    if(raw_request) {
+        const char *sep = strstr(raw_request, "\r\n\r\n");
+        raw_body = sep ? sep + 4 : NULL;
+    }
+
+    char *body_copy = NULL;
+
+    if(raw_body && body_length) {
+        body_copy = malloc(body_length + 1);
+        if(body_copy) {
+            memcpy(body_copy, raw_body, body_length);
+            body_copy[body_length] = '\0';
+        }
+    } else if (raw_body) {
+        body_copy = strdup(raw_body);
+    }
+
+    return body_copy;
+}
+
+http_header_t* parse_http_header(char* line) {
+    char* colon = strchr(line, ':');
+
+    printf("%s", line);
+
+    if(!colon) return NULL;
+
+    *colon = '\0';
+
+    char* name = strdup(line);
+    char* value = strdup(colon + 1);
+
+    trim_inplace(name);
+    trim_inplace(value);
+
+    http_header_t* header = malloc(sizeof(http_header_t));
+
+    printf("Name: %s, Value: %s\n", name, value);
+
+    header->name = name;
+    header->value = value;
+
+    return header;
+}
+
+http_request_line_t* parse_request_line (char* raw_request_line) {
+    if(raw_request_line == NULL) return NULL;
+    
+    http_request_line_t* http_request_line = malloc(sizeof(http_request_line_t));
+    
+    if(http_request_line == NULL) {
+        perror("Memory allocation failed for http_request_line");
+        return NULL;
+    }
+
+    http_request_line->method = NULL;
+    http_request_line->path = NULL;
+    http_request_line->version = NULL;
+
+    short int index = 0;
+    const char *delimiters = " \t\r\n";
+    
+    char* source = strdup(raw_request_line);
+    char* token = strtok(source, delimiters);
+
+    while(token != NULL && index != 3) {
+        if (index == 0) http_request_line->method = strdup(token);
+        
+        else if(index == 1) http_request_line->path = strdup(token);
+        
+        else http_request_line->version = strdup(token);
+        
+        index++;
+        token = strtok(NULL, delimiters);
+    }
+
+    free(source);
+
+    if(!http_request_line->method || !http_request_line->path || !http_request_line->version) {
+        perror("Failed to copy strings into http_request_line");
+        http_request_line_free(http_request_line);
+        return NULL;
+    }
+
+    return http_request_line;
+}
+
+http_request_t* http_request_create(const char* raw_request, size_t raw_request_len) {
+    http_request_bounds_t* req = http_parse_boundaries(raw_request, raw_request_len);
+
+    printf("=== HTTP REQUEST BOUNDS ===\n");
+
+    printf("request_line_len = %zu\n", req->request_line_len);
+    printf("request_line     = '%.*s'\n",
+           (int)req->request_line_len,
+           req->request_line_start);
+
+    printf("header_count     = %zu\n", req->header_count);
+
+    for (size_t i = 0; i < req->header_count; i++) {
+        printf("header[%zu] len=%zu value='%.*s'\n",
+               i,
+               req->headers[i].len,
+               (int)req->headers[i].len,
+               req->headers[i].start);
+    }
+
+    printf("body_len         = %zu\n", req->body_len);
+    printf("body             = '%.*s'\n",
+           (int)req->body_len,
+           req->body_start ? req->body_start : "");
+
+    printf("===========================\n");
+
+    char* req_line = malloc(sizeof(char) * (req->request_line_len + 1));
+    memcpy(req_line, req->request_line_start, req->request_line_len);
+
+    http_request_line_t* request_line = parse_request_line(req_line);
+
+    http_header_t** headers = malloc(req->header_count * sizeof(*headers));
+
+    for(size_t i = 0; i < req->header_count; i++) {
+        char* header_line = malloc(sizeof(char) * (req->headers[i].len + 1));
+
+        memcpy(header_line, req->headers[i].start, req->headers[i].len);
+
+        http_header_t* header = parse_http_header(header_line);
+        headers[i] = header;
+    }
+
+    char* body = parse_http_request_body(req->body_start, req->body_len);
+
+    http_request_t* request = malloc(sizeof(http_request_t));
+
+    request->body = body;
+    request->http_request_line = request_line;
+    request->headers = headers;
+    request->header_count = req->header_count;
+
+    printf("Method: %s, Path: %s, Version: %s", request_line->method, request_line->path, request_line->version);
+    fflush(stdout);
+
+    return request;
+}

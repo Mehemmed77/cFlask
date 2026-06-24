@@ -1,5 +1,5 @@
-#ifndef CONNECTION_H
-#define CONNECTION_H
+#ifndef APP_H
+#define APP_H
 
 #include "./http.h"
 

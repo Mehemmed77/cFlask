@@ -6,13 +6,26 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <stdbool.h>
+#include "../include/http.h"
 #include "../include/app.h"
 #include "../include/connection.h"
-#include "../include/http.h"
 
 #define INITIAL_ROUTE_CAPACITY 5
 
-void handle_client(int client_fd) {
+// UTILITIES
+bool route_exists(app_t* app, char* path, char* method) {
+    route_t* routes = app->routes;
+
+    for(int i = 0; i < app->route_count; i++) {
+        if(
+            !(strcmp(routes[i].method, method) || 
+            strcmp(routes[i].path, path))) return true;
+    }
+
+    return false;
+}
+
+void handle_client(app_t* app, int client_fd) {
     char* raw_response = NULL;
 
     byte_buffer_t* byte_buffer = NULL;
@@ -27,14 +40,19 @@ void handle_client(int client_fd) {
     }
 
     http_request_t* http_request = http_request_create(byte_buffer->buffer, byte_buffer->length);
+    http_request_line_t* http_request_line = http_request->http_request_line;
+
+    if(!route_exists(app, http_request_line->path, http_request_line->method)) goto cleanup;
 
     response = http_response_create(200, "OK", "text/plain", "SALAM\n");
+
     if (response == NULL) {
         perror("Failed to create HTTP response");
         goto cleanup;
     }
 
     raw_response = http_response_serialize(response);
+
     if (raw_response == NULL) {
         perror("Failed to serialize HTTP response");
         goto cleanup;
@@ -63,8 +81,7 @@ void handle_client(int client_fd) {
 
         connection_free(byte_buffer);
         http_response_free(response);
-        // http_request_free(http_request);
-        // http_request_line_free(http_request_line);
+        http_request_free(http_request);
         free(raw_response);
 }
 
@@ -115,6 +132,6 @@ void app_run(app_t* app, int PORT) {
             continue;
         }
 
-        handle_client(client_fd);
+        handle_client(app, client_fd);
     }
 }

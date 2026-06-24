@@ -1,0 +1,22 @@
+#ifndef CONNECTION_H
+#define CONNECTION_H
+
+#include "./http.h"
+
+typedef http_response_t* (*route_handler)(http_request_t*);
+
+typedef struct {
+    char* method;
+    char* path;
+    route_handler* handler;
+} route_t;
+
+typedef struct {
+    route_t* routes;
+    size_t route_count;
+    size_t route_capacity;
+} app_t;
+
+app_t* app_create();
+
+#endif

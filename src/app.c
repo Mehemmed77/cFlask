@@ -1,17 +1,20 @@
 #include <stdio.h>
-#include <netinet/in.h>
 #include <stdlib.h>
 #include <string.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <stdbool.h>
-#include "../include/server.h"
+#include "../include/app.h"
 #include "../include/connection.h"
 #include "../include/http.h"
 
+#define INITIAL_ROUTE_CAPACITY 5
+
 void handle_client(int client_fd) {
     char* raw_response = NULL;
+
     byte_buffer_t* byte_buffer = NULL;
     http_response_t* response = NULL;
     size_t response_length;
@@ -23,7 +26,7 @@ void handle_client(int client_fd) {
         goto cleanup;
     }
 
-    // http_request_t* http_request = http_request_create(byte_buffer->buffer, byte_buffer->length);
+    http_request_t* http_request = http_request_create(byte_buffer->buffer, byte_buffer->length);
 
     response = http_response_create(200, "OK", "text/plain", "SALAM\n");
     if (response == NULL) {
@@ -65,7 +68,17 @@ void handle_client(int client_fd) {
         free(raw_response);
 }
 
-void server_run(int PORT) {
+app_t* app_create() {
+    app_t* app = malloc(sizeof(app_t));
+
+    app->routes = 0;
+    app->route_capacity = INITIAL_ROUTE_CAPACITY;
+    app->routes = malloc(INITIAL_ROUTE_CAPACITY * sizeof(route_t));
+
+    return app;
+}
+
+void app_run(app_t* app, int PORT) {
     struct sockaddr_in address;
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -104,10 +117,4 @@ void server_run(int PORT) {
 
         handle_client(client_fd);
     }
-}
-
-int main() {
-    server_run(8080);
-
-    return 0;
 }

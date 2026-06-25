@@ -16,7 +16,7 @@
 bool route_exists(app_t* app, char* path, char* method) {
     route_t* routes = app->routes;
 
-    for(int i = 0; i < app->route_count; i++) {
+    for(size_t i = 0; i < app->route_count; i++) {
         if(
             !(strcmp(routes[i].method, method) || 
             strcmp(routes[i].path, path))) return true;
@@ -30,8 +30,8 @@ void handle_client(app_t* app, int client_fd) {
 
     byte_buffer_t* byte_buffer = NULL;
     http_response_t* response = NULL;
-    size_t response_length;
-    size_t total_sent;
+    size_t response_length = 0;
+    size_t total_sent = 0;
 
     byte_buffer = connection_receive_request(client_fd);
     if (byte_buffer == NULL) {
@@ -40,9 +40,17 @@ void handle_client(app_t* app, int client_fd) {
     }
 
     http_request_t* http_request = http_request_create(byte_buffer->buffer, byte_buffer->length);
+
+    if (http_request == NULL || http_request->http_request_line == NULL) {
+        perror("Failed to parse HTTP request");
+        goto cleanup;
+    }
+
     http_request_line_t* http_request_line = http_request->http_request_line;
 
-    if(!route_exists(app, http_request_line->path, http_request_line->method)) goto cleanup;
+    if(!route_exists(app, http_request_line->path, http_request_line->method)) {
+        printf("==================== ROUTE DOES NOT EXIST ===================");
+    };
 
     response = http_response_create(200, "OK", "text/plain", "SALAM\n");
 
@@ -91,6 +99,7 @@ app_t* app_create() {
     app->routes = 0;
     app->route_capacity = INITIAL_ROUTE_CAPACITY;
     app->routes = malloc(INITIAL_ROUTE_CAPACITY * sizeof(route_t));
+    app->route_count = 0;
 
     return app;
 }

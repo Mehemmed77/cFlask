@@ -18,5 +18,6 @@ typedef struct {
 } app_t;
 
 app_t* app_create();
+void app_run(app_t* app, int PORT);
 
 #endif

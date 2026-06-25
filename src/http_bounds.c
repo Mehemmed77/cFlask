@@ -13,7 +13,14 @@ http_request_bounds_t* http_parse_boundaries(const char* buf, size_t buf_len) {
         goto cleanup;
     }
 
+    http_request_bounds->request_line_start = NULL;
+    http_request_bounds->request_line_len = 0;
+    http_request_bounds->headers = NULL;
+    http_request_bounds->header_count = 0;
+    http_request_bounds->body_start = NULL;
+    http_request_bounds->body_len = 0;
     size_t capacity = INITIAL_HEADERS;
+
     http_request_bounds->headers = malloc(INITIAL_HEADERS * sizeof(http_header_bounds_t));
 
     if(http_request_bounds->headers == NULL) {
@@ -32,22 +39,26 @@ http_request_bounds_t* http_parse_boundaries(const char* buf, size_t buf_len) {
         ptr++;
     }
 
+    if (ptr + 1 >= end) {
+        goto cleanup;
+    }
+
     ptr += 2;
 
     http_request_bounds->request_line_start = request_line_start;
     http_request_bounds->request_line_len = request_line_len;
 
-    size_t len = 0;
     size_t header_count = 0;
     
-    while(
-        ptr + 3 < end &&
-        !(ptr[0] == '\r' && ptr[1] == '\n' && ptr[2] == '\r' && ptr[3] == '\n')
-    ) {
-
-        if (ptr + 1 >= end || (*ptr == '\r' && ptr[1] == '\n')) break;
-
-        printf("%c\n", *ptr);
+    while (ptr < end) {
+        if (ptr + 1 < end && ptr[0] == '\r' && ptr[1] == '\n') {
+            ptr += 2;
+            http_request_bounds->header_count = header_count;
+            http_request_bounds->body_start = ptr;
+            http_request_bounds->body_len = (size_t)(end - ptr);
+            return http_request_bounds;
+        }
+        
         if(header_count >= capacity) {
             capacity *= 2;
             http_header_bounds_t* temp = realloc(http_request_bounds->headers, capacity * sizeof(http_header_bounds_t));
@@ -55,37 +66,39 @@ http_request_bounds_t* http_parse_boundaries(const char* buf, size_t buf_len) {
                 perror("Failed to reallocate memory for http header bounds");
                 goto cleanup;
             }
+    
             http_request_bounds->headers = temp;
         }
-
+    
         http_request_bounds->headers[header_count].start = ptr;
         
+        size_t len = 0;
         while(ptr + 1 < end && !(*ptr == '\r' && *(ptr + 1) == '\n')) {
             ptr++;
             len++;
         }
-        
+
+        if (ptr + 1 >= end) {
+            goto cleanup;
+        }
+
         http_request_bounds->headers[header_count].len = len;
 
-        len = 0;
         ptr += 2;
-
         header_count++;
     }
 
-    ptr += 4;
-    
     http_request_bounds->header_count = header_count;
     http_request_bounds->body_start = ptr;
-    http_request_bounds->body_len = strlen(ptr);
+    http_request_bounds->body_len = (size_t) (end - ptr);
 
     return http_request_bounds;
 
-cleanup:
-    if (http_request_bounds) {
-        free(http_request_bounds->headers);
-        free(http_request_bounds);
-    }
-    return NULL;
+    cleanup:
+        if (http_request_bounds) {
+            free(http_request_bounds->headers);
+            free(http_request_bounds);
+        }
+        return NULL;
 }
 

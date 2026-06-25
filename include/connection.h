@@ -1,9 +1,11 @@
 #ifndef CONNECTION_H
 #define CONNECTION_H
 
+#include <stddef.h>
+
 typedef struct {
     char* buffer;
-    int length;
+    size_t length;
 } byte_buffer_t;
 
 byte_buffer_t* connection_receive_request(int client_fd);

@@ -10,7 +10,8 @@ HTTP_SRC = \
 	src/http_request_parser.c \
 	src/http_response.c \
 	src/http_bounds.c \
-	src/http_utils.c
+	src/http_utils.c \
+	src/app.c
 
 SERVER_SRC = \
 	src/server.c \

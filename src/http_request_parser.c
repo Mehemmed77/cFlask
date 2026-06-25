@@ -6,23 +6,14 @@
 #include "../include/http.h"
 
 char* parse_http_request_body(const char* raw_request, size_t body_length) {
-    const char* raw_body = NULL;
-
-    if(raw_request) {
-        const char *sep = strstr(raw_request, "\r\n\r\n");
-        raw_body = sep ? sep + 4 : NULL;
-    }
-
     char *body_copy = NULL;
 
-    if(raw_body && body_length) {
+    if(raw_request && body_length) {
         body_copy = malloc(body_length + 1);
         if(body_copy) {
-            memcpy(body_copy, raw_body, body_length);
+            memcpy(body_copy, raw_request, body_length);
             body_copy[body_length] = '\0';
         }
-    } else if (raw_body) {
-        body_copy = strdup(raw_body);
     }
 
     return body_copy;
@@ -97,50 +88,49 @@ http_request_line_t* parse_request_line (char* raw_request_line) {
 
 http_request_t* http_request_create(const char* raw_request, size_t raw_request_len) {
     http_request_bounds_t* req = http_parse_boundaries(raw_request, raw_request_len);
+    if(req == NULL) return NULL;
 
-    printf("=== HTTP REQUEST BOUNDS ===\n");
+    http_request_line_t* request_line = NULL;
+    http_header_t** headers = NULL;
+    size_t temp_size = 0;
+    char* body = NULL;
 
-    printf("request_line_len = %zu\n", req->request_line_len);
-    printf("request_line     = '%.*s'\n",
-           (int)req->request_line_len,
-           req->request_line_start);
+    char* req_line_char = malloc(sizeof(char) * (req->request_line_len + 1));
+    if(req_line_char == NULL) goto cleanup_bounds;
 
-    printf("header_count     = %zu\n", req->header_count);
+    memcpy(req_line_char, req->request_line_start, req->request_line_len);
+    req_line_char[req->request_line_len] = '\0';
 
-    for (size_t i = 0; i < req->header_count; i++) {
-        printf("header[%zu] len=%zu value='%.*s'\n",
-               i,
-               req->headers[i].len,
-               (int)req->headers[i].len,
-               req->headers[i].start);
-    }
+    request_line = parse_request_line(req_line_char);
+    free(req_line_char);
 
-    printf("body_len         = %zu\n", req->body_len);
-    printf("body             = '%.*s'\n",
-           (int)req->body_len,
-           req->body_start ? req->body_start : "");
+    if(request_line == NULL) goto cleanup_bounds;
 
-    printf("===========================\n");
+    headers = malloc(req->header_count * sizeof(*headers));
 
-    char* req_line = malloc(sizeof(char) * (req->request_line_len + 1));
-    memcpy(req_line, req->request_line_start, req->request_line_len);
-
-    http_request_line_t* request_line = parse_request_line(req_line);
-
-    http_header_t** headers = malloc(req->header_count * sizeof(*headers));
+    if(headers == NULL) goto cleanup_bounds;
 
     for(size_t i = 0; i < req->header_count; i++) {
         char* header_line = malloc(sizeof(char) * (req->headers[i].len + 1));
-
+        
+        if(header_line == NULL) {
+            goto cleanup_bounds;
+        };
+        
         memcpy(header_line, req->headers[i].start, req->headers[i].len);
-
+        header_line[req->headers[i].len] = '\0';
+        
         http_header_t* header = parse_http_header(header_line);
+        free(header_line);
         headers[i] = header;
+
+        temp_size++;
     }
 
-    char* body = parse_http_request_body(req->body_start, req->body_len);
+    body = parse_http_request_body(req->body_start, req->body_len);
 
     http_request_t* request = malloc(sizeof(http_request_t));
+    if (request == NULL) goto cleanup_bounds;
 
     request->body = body;
     request->http_request_line = request_line;
@@ -149,6 +139,14 @@ http_request_t* http_request_create(const char* raw_request, size_t raw_request_
 
     printf("Method: %s, Path: %s, Version: %s", request_line->method, request_line->path, request_line->version);
     fflush(stdout);
-
+    
     return request;
+
+    cleanup_bounds:
+        free(body);
+        http_request_line_free(request_line);
+        http_request_headers_free(headers, temp_size);
+        free(req->headers);
+        free(req);
+        return NULL;
 }

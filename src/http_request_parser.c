@@ -22,8 +22,6 @@ char* parse_http_request_body(const char* raw_request, size_t body_length) {
 http_header_t* parse_http_header(char* line) {
     char* colon = strchr(line, ':');
 
-    printf("%s", line);
-
     if(!colon) return NULL;
 
     *colon = '\0';
@@ -35,8 +33,6 @@ http_header_t* parse_http_header(char* line) {
     trim_inplace(value);
 
     http_header_t* header = malloc(sizeof(http_header_t));
-
-    printf("Name: %s, Value: %s\n", name, value);
 
     header->name = name;
     header->value = value;
@@ -137,7 +133,6 @@ http_request_t* http_request_create(const char* raw_request, size_t raw_request_
     request->headers = headers;
     request->header_count = req->header_count;
 
-    printf("Method: %s, Path: %s, Version: %s", request_line->method, request_line->path, request_line->version);
     fflush(stdout);
     
     return request;

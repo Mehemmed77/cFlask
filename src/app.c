@@ -13,16 +13,16 @@
 #define INITIAL_ROUTE_CAPACITY 5
 
 // UTILITIES
-bool route_exists(app_t* app, char* path, char* method) {
+route_t* get_route(app_t* app, char* path, char* method) {
     route_t* routes = app->routes;
 
     for(size_t i = 0; i < app->route_count; i++) {
         if(
             !(strcmp(routes[i].method, method) || 
-            strcmp(routes[i].path, path))) return true;
-    }
+            strcmp(routes[i].path, path))) return &routes[i];
+        }
 
-    return false;
+    return NULL;
 }
 
 void handle_client(app_t* app, int client_fd) {
@@ -48,11 +48,11 @@ void handle_client(app_t* app, int client_fd) {
 
     http_request_line_t* http_request_line = http_request->http_request_line;
 
-    if(!route_exists(app, http_request_line->path, http_request_line->method)) {
-        printf("==================== ROUTE DOES NOT EXIST ===================");
-    };
+    route_t* route = get_route(app, http_request_line->path, http_request_line->method);
 
-    response = http_response_create(200, "OK", "text/plain", "SALAM\n");
+    if(route == NULL) goto cleanup;
+
+    response = route->handler(http_request);
 
     if (response == NULL) {
         perror("Failed to create HTTP response");
@@ -91,6 +91,46 @@ void handle_client(app_t* app, int client_fd) {
         http_response_free(response);
         http_request_free(http_request);
         free(raw_response);
+}
+
+bool double_route_capacity(app_t* app) {
+    size_t new_capacity = app->route_capacity * 2;
+
+    route_t* temp = realloc(app->routes, new_capacity);
+    
+    if(temp == NULL) return false;
+
+    app->routes = temp;
+    app->route_capacity = new_capacity;
+
+    return true;
+}
+
+void app_get(app_t* app, char* path, route_handler handler) {
+    if(app->route_count >= app->route_capacity) {
+        bool has_doubled = double_route_capacity(app);
+
+        if(!has_doubled) {
+            perror("Failed to reallocate memory for routes, try again.");
+            return;
+        }
+    }
+
+    if(get_route(app, path, "GET") != NULL) {
+        printf("Route already exists");
+        return;
+    }
+    route_t route;
+
+    route.handler = handler;
+    route.path = strdup(path);
+    route.method = "GET";
+
+    printf("Registered");
+    fflush(stdout);
+
+    app->routes[app->route_count] = route;
+    app->route_count++;
 }
 
 app_t* app_create() {

@@ -8,7 +8,7 @@ typedef http_response_t* (*route_handler)(http_request_t*);
 typedef struct {
     char* method;
     char* path;
-    route_handler* handler;
+    route_handler handler;
 } route_t;
 
 typedef struct {
@@ -19,5 +19,6 @@ typedef struct {
 
 app_t* app_create();
 void app_run(app_t* app, int PORT);
+void app_get(app_t* app, char* path, route_handler handler);
 
 #endif

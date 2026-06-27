@@ -104,4 +104,6 @@ void http_request_headers_free(
     size_t size
 );
 
+void free_http_bounds(http_request_bounds_t* req);
+
 #endif

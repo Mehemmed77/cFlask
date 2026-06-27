@@ -26,6 +26,16 @@ route_t* get_route(app_t* app, char* path, char* method) {
     return NULL;
 }
 
+void app_free(app_t* app) {
+    route_t* routes = app->routes;
+    
+    for(size_t i = 0; i < app->route_count; i++) {
+        free(routes[i].path);
+    }
+
+    free(routes);
+}
+
 void handle_client(app_t* app, int client_fd) {
     char* raw_response = NULL;
 
@@ -109,31 +119,39 @@ bool double_route_capacity(app_t* app) {
     return true;
 }
 
-void app_get(app_t* app, char* path, route_handler handler) {
+void app_add_route(app_t* app, char* method, char* path, route_handler handler) {
     if(app->route_count >= app->route_capacity) {
         bool has_doubled = double_route_capacity(app);
-
+    
         if(!has_doubled) {
             perror("Failed to reallocate memory for routes, try again.");
             return;
         }
     }
-
+    
     if(get_route(app, path, "GET") != NULL) {
         printf("Route already exists");
         return;
     }
     route_t route;
-
+    
     route.handler = handler;
     route.path = strdup(path);
-    route.method = "GET";
-
-    printf("Registered");
+    route.method = method;
+    
+    printf("Registered GET\n");
     fflush(stdout);
-
+    
     app->routes[app->route_count] = route;
     app->route_count++;
+}
+
+void app_post(app_t* app, char* path, route_handler handler) {
+    app_add_route(app, "POST", path, handler);
+}
+
+void app_get(app_t* app, char* path, route_handler handler) {
+    app_add_route(app, "GET", path, handler);
 }
 
 app_t* app_create() {

@@ -134,14 +134,15 @@ http_request_t* http_request_create(const char* raw_request, size_t raw_request_
     request->header_count = req->header_count;
 
     fflush(stdout);
-    
+
+    free_http_bounds(req);
+
     return request;
 
     cleanup_bounds:
         free(body);
         http_request_line_free(request_line);
         http_request_headers_free(headers, temp_size);
-        free(req->headers);
-        free(req);
+        free_http_bounds(req);
         return NULL;
 }

@@ -5,6 +5,11 @@
 
 #define INITIAL_HEADERS 5
 
+void free_http_bounds(http_request_bounds_t* req) {
+    free(req->headers);
+    free(req);
+}
+
 http_request_bounds_t* http_parse_boundaries(const char* buf, size_t buf_len) {
     http_request_bounds_t* http_request_bounds = malloc(sizeof(http_request_bounds_t));
 
@@ -95,10 +100,8 @@ http_request_bounds_t* http_parse_boundaries(const char* buf, size_t buf_len) {
     return http_request_bounds;
 
     cleanup:
-        if (http_request_bounds) {
-            free(http_request_bounds->headers);
-            free(http_request_bounds);
-        }
+        if (http_request_bounds) free_http_bounds(http_request_bounds);
+
         return NULL;
 }
 

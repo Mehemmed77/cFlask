@@ -20,5 +20,7 @@ typedef struct {
 app_t* app_create();
 void app_run(app_t* app, int PORT);
 void app_get(app_t* app, char* path, route_handler handler);
+void app_post(app_t* app, char* path, route_handler handler);
+void app_free(app_t* app);
 
 #endif

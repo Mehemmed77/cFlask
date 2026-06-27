@@ -9,6 +9,7 @@
 #include "../include/http.h"
 #include "../include/app.h"
 #include "../include/connection.h"
+#include "../include/constants.h"
 
 #define INITIAL_ROUTE_CAPACITY 5
 
@@ -50,9 +51,11 @@ void handle_client(app_t* app, int client_fd) {
 
     route_t* route = get_route(app, http_request_line->path, http_request_line->method);
 
-    if(route == NULL) goto cleanup;
+    if(route == NULL) {
+        response = http_response_create(NOT_FOUND, NOT_FOUND_TEXT, TEXT_PLAIN, "404 Not Found");
+    }
 
-    response = route->handler(http_request);
+    else response = route->handler(http_request);
 
     if (response == NULL) {
         perror("Failed to create HTTP response");

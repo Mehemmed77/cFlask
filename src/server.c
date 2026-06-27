@@ -12,14 +12,14 @@
 #include "../include/app.h"
 
 http_response_t* home_handler(http_request_t* request) {
-    return http_response_create(200, "OK", "text/plain", "Agilli olun\nMiyau");
+    return http_response_create(200, "OK", "text/html", "<!DOCTYPE html><html><head><title>Page Title</title></head><body><h1>This is a Heading</h1><p>This is a paragraph.</p></body></html>");
 }
 
 int main() {
     app_t* app = app_create();
     app_get(app, "/", home_handler);
 
-    app_run(app, 8080);
+    app_run(app, 8081);
 
     return 0;
 }

@@ -38,6 +38,7 @@ void app_free(app_t* app) {
 
 void handle_client(app_t* app, int client_fd) {
     char* raw_response = NULL;
+    http_request_t* http_request = NULL;
 
     byte_buffer_t* byte_buffer = NULL;
     http_response_t* response = NULL;
@@ -50,7 +51,7 @@ void handle_client(app_t* app, int client_fd) {
         goto cleanup;
     }
 
-    http_request_t* http_request = http_request_create(byte_buffer->buffer, byte_buffer->length);
+    http_request = http_request_create(byte_buffer->buffer, byte_buffer->length);
 
     if (http_request == NULL || http_request->http_request_line == NULL) {
         perror("Failed to parse HTTP request");
@@ -129,7 +130,7 @@ void app_add_route(app_t* app, char* method, char* path, route_handler handler) 
         }
     }
     
-    if(get_route(app, path, "GET") != NULL) {
+    if(get_route(app, path, method) != NULL) {
         printf("Route already exists");
         return;
     }

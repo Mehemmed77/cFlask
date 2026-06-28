@@ -27,9 +27,10 @@ typedef struct {
 } http_response_t;
 
 typedef struct {
-    char *method;
-    char *path;
-    char *version;
+    char* method;
+    char* path;
+    char* version;
+    char* query_string;
 } http_request_line_t;
 
 typedef struct {
@@ -103,6 +104,8 @@ void http_request_headers_free(
     http_header_t** headers,
     size_t size
 );
+
+char* get_http_header_value(http_request_t* request, char* name);
 
 void free_http_bounds(http_request_bounds_t* req);
 

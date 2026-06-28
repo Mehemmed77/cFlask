@@ -16,6 +16,7 @@ void http_request_line_free(http_request_line_t* http_request_line) {
     free(http_request_line->method);
     free(http_request_line->path);
     free(http_request_line->version);
+    free(http_request_line->query_string);
     free(http_request_line);
 }
 

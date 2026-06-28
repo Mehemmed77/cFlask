@@ -40,7 +40,7 @@ http_header_t* parse_http_header(char* line) {
     return header;
 }
 
-http_request_line_t* parse_request_line (char* raw_request_line) {
+http_request_line_t* parse_request_line(char* raw_request_line) {
     if(raw_request_line == NULL) return NULL;
     
     http_request_line_t* http_request_line = malloc(sizeof(http_request_line_t));
@@ -62,11 +62,23 @@ http_request_line_t* parse_request_line (char* raw_request_line) {
 
     while(token != NULL && index != 3) {
         if (index == 0) http_request_line->method = strdup(token);
-        
-        else if(index == 1) http_request_line->path = strdup(token);
-        
+
+        else if(index == 1) {
+            char* query_start = strchr(token, '?');
+            char* query_string = NULL;
+
+            if(query_start != NULL) {
+                *query_start = '\0';
+
+                query_string = strdup(query_start + 1);
+            }
+            
+            http_request_line->path = strdup(token);
+            http_request_line->query_string = query_string;
+        }
+
         else http_request_line->version = strdup(token);
-        
+
         index++;
         token = strtok(NULL, delimiters);
     }

@@ -4,6 +4,18 @@
 #include <ctype.h>
 #include "../include/http.h"
 
+char* get_http_header_value(http_request_t* request, char* name) {
+    http_header_t** headers = request->headers;
+
+    for(size_t i = 0; i < request->header_count; i++) {
+        http_header_t* header = headers[i];
+        
+        if(strcmp(header->name, name) == 0) return header->value;
+    }
+
+    return NULL;
+}
+
 void trim_inplace(char* s) {
     if (!s) return;
 

@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include "../include/http.h"
+#include "../include/hashmap.h"
 
 char* parse_http_request_body(const char* raw_request, size_t body_length) {
     char *body_copy = NULL;
@@ -72,7 +73,7 @@ http_request_line_t* parse_request_line(char* raw_request_line) {
 
                 query_string = strdup(query_start + 1);
             }
-            
+
             http_request_line->path = strdup(token);
             http_request_line->query_string = query_string;
         }
@@ -94,10 +95,47 @@ http_request_line_t* parse_request_line(char* raw_request_line) {
     return http_request_line;
 }
 
+hashmap* parse_query_params(char* query_string) {
+    char* source;
+    hashmap* map;
+
+    const char* delimiters = "&";
+    source = strdup(query_string);
+    if(!source) goto cleanup;
+    
+    map = hashmap_create();
+    
+    if(!map) goto cleanup;
+
+    char* token = strtok(source, delimiters);
+    
+    while(token != NULL) {
+        char* equal = strchr(token, '=');
+
+        if(equal == NULL) goto cleanup;
+
+        *equal = '\0';
+        
+        hashmap_put(map, token, strdup(equal + 1));
+
+        token = strtok(NULL, delimiters);
+    }
+
+    free(source);
+
+    return map;
+
+    cleanup:
+        free(source);
+        hashmap_destroy(map);
+        return NULL;
+}
+
 http_request_t* http_request_create(const char* raw_request, size_t raw_request_len) {
     http_request_bounds_t* req = http_parse_boundaries(raw_request, raw_request_len);
     if(req == NULL) return NULL;
 
+    hashmap* map = NULL;
     http_request_line_t* request_line = NULL;
     http_header_t** headers = NULL;
     size_t temp_size = 0;
@@ -111,6 +149,9 @@ http_request_t* http_request_create(const char* raw_request, size_t raw_request_
 
     request_line = parse_request_line(req_line_char);
     free(req_line_char);
+
+    map = parse_query_params(request_line->query_string);
+    if(map == NULL) goto cleanup_bounds;
 
     if(request_line == NULL) goto cleanup_bounds;
 
@@ -144,6 +185,7 @@ http_request_t* http_request_create(const char* raw_request, size_t raw_request_
     request->http_request_line = request_line;
     request->headers = headers;
     request->header_count = req->header_count;
+    request->query_params = map;
 
     fflush(stdout);
 
@@ -153,6 +195,7 @@ http_request_t* http_request_create(const char* raw_request, size_t raw_request_
 
     cleanup_bounds:
         free(body);
+        hashmap_destroy(map);
         http_request_line_free(request_line);
         http_request_headers_free(headers, temp_size);
         free_http_bounds(req);

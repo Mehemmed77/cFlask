@@ -2,6 +2,9 @@
 #define APP_H
 
 #include "./http.h"
+#include "./hashmap.h"
+
+#define INITIAL_ROUTE_CAPACITY 5
 
 typedef http_response_t* (*route_handler)(http_request_t*);
 
@@ -9,6 +12,7 @@ typedef struct {
     char* method;
     char* path;
     route_handler handler;
+    // hashmap* params;
 } route_t;
 
 typedef struct {

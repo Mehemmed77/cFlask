@@ -11,6 +11,7 @@ HTTP_SRC = \
 	src/http_response.c \
 	src/http_bounds.c \
 	src/http_utils.c \
+	src/libraries/hashmap.c \
 	src/app.c
 
 SERVER_SRC = \

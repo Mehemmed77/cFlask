@@ -10,8 +10,7 @@
 #include "../include/app.h"
 #include "../include/connection.h"
 #include "../include/constants.h"
-
-#define INITIAL_ROUTE_CAPACITY 5
+#include "../include/hashmap.h"
 
 // UTILITIES
 route_t* get_route(app_t* app, char* path, char* method) {
@@ -32,6 +31,7 @@ void app_free(app_t* app) {
     for(size_t i = 0; i < app->route_count; i++) {
         free(routes[i].path);
     }
+    // hashmap_destroy(routes->params);
 
     free(routes);
 }

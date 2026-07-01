@@ -2,6 +2,7 @@
 #define HTTP_H
 
 #include <stddef.h>
+#include "hashmap.h"
 
 typedef struct {
     const char* start;
@@ -43,6 +44,8 @@ typedef struct {
     http_header_t** headers;
     size_t header_count;
     char *body;
+    hashmap* query_params;
+    hashmap* params;
 } http_request_t;
 
 /* Response */

@@ -86,6 +86,7 @@ bool insert_new_bucket(
     bucket* prev = NULL;
     while(b != NULL) {
         if (strcmp(b->key, key) == 0) {
+            free(b->value);
             b->value = value;
             return false;
         }
@@ -131,11 +132,16 @@ bucket** resize(hashmap* map) {
 // ================== PUBLIC FUNCTIONS ==================
 hashmap* hashmap_create() {
     hashmap* map = malloc(sizeof(hashmap));
+    if(!map) return NULL;
     
     map->capacity = INITIAL_CAPACITY;
     map->size = 0;
     
     map->buckets = calloc(INITIAL_CAPACITY, sizeof(bucket*));
+    if(!map->buckets) {
+        free(map);
+        return NULL;
+    }
     
     return map;
 }
@@ -158,6 +164,8 @@ void hashmap_put(hashmap* map, char* key, void* value) {
 }
 
 void hashmap_destroy(hashmap* map) {
+    if(map == NULL) return;
+
     for(int idx = 0; idx < map->capacity; idx++) {
         bucket* b = map->buckets[idx];
         

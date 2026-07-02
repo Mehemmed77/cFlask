@@ -96,17 +96,21 @@ http_request_line_t* parse_request_line(char* raw_request_line) {
 }
 
 hashmap* parse_query_params(char* query_string) {
-    char* source;
-    hashmap* map;
+    char* source = NULL;
+    hashmap* map = NULL;
 
     const char* delimiters = "&";
+
+    map = hashmap_create();
+    if(!map) goto cleanup;
+
+    if(query_string == NULL || *query_string == '\0') {
+        return map;
+    }
+
     source = strdup(query_string);
     if(!source) goto cleanup;
     
-    map = hashmap_create();
-    
-    if(!map) goto cleanup;
-
     char* token = strtok(source, delimiters);
     
     while(token != NULL) {
@@ -150,10 +154,10 @@ http_request_t* http_request_create(const char* raw_request, size_t raw_request_
     request_line = parse_request_line(req_line_char);
     free(req_line_char);
 
+    if(request_line == NULL) goto cleanup_bounds;
+
     map = parse_query_params(request_line->query_string);
     if(map == NULL) goto cleanup_bounds;
-
-    if(request_line == NULL) goto cleanup_bounds;
 
     headers = malloc(req->header_count * sizeof(*headers));
 
@@ -186,6 +190,7 @@ http_request_t* http_request_create(const char* raw_request, size_t raw_request_
     request->headers = headers;
     request->header_count = req->header_count;
     request->query_params = map;
+    request->params = NULL;
 
     fflush(stdout);
 

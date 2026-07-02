@@ -134,7 +134,23 @@ void app_add_route(app_t* app, char* method, char* path, route_handler handler) 
         printf("Route already exists");
         return;
     }
+
     route_t route;
+
+    char* source = strdup(path);
+    const char* delimiters = "/";
+
+    char* token = strtok(source, delimiters);
+
+    size_t segment_count = 0;
+    route.segments = malloc(sizeof(route_segment_t) * INITIAL_SEGMENT_CAPACITY);
+
+    while(token != NULL) {
+        if (segment_count)
+        if(*token != ':') 
+
+        token = strtok(NULL, delimiters);
+    }
     
     route.handler = handler;
     route.path = strdup(path);

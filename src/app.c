@@ -25,13 +25,23 @@ route_t* get_route(app_t* app, char* path, char* method) {
     return NULL;
 }
 
+void free_route_segments(route_segment_t* segments, size_t segment_count) {
+    for(size_t i = 0; i < segment_count; i++) free(segments[i].value);
+    
+    free(segments);
+}
+
+void free_route(route_t route) {
+    free(route.path);
+    if(route.segments != NULL) free_route_segments(route.segments, route.segment_count);
+}
+
 void app_free(app_t* app) {
     route_t* routes = app->routes;
     
     for(size_t i = 0; i < app->route_count; i++) {
-        free(routes[i].path);
+        free_route(routes[i]);
     }
-    // hashmap_destroy(routes->params);
 
     free(routes);
 }
@@ -135,32 +145,58 @@ void app_add_route(app_t* app, char* method, char* path, route_handler handler) 
         return;
     }
 
-    route_t route;
+    route_t route = {0};
+    char* source = NULL;
 
-    char* source = strdup(path);
-    const char* delimiters = "/";
-
-    char* token = strtok(source, delimiters);
+    source = strdup(path);
+    if(source == NULL) goto cleanup;
 
     size_t segment_count = 0;
-    route.segments = malloc(sizeof(route_segment_t) * INITIAL_SEGMENT_CAPACITY);
+    size_t capacity = INITIAL_SEGMENT_CAPACITY;
 
-    while(token != NULL) {
-        if (segment_count)
-        if(*token != ':') 
+    if(strcmp(path, "/") != 0) {
+        const char* delimiters = "/";
+        char* token = strtok(source, delimiters);
 
-        token = strtok(NULL, delimiters);
+        route.segments = malloc(sizeof(route_segment_t) * capacity);
+        if(route.segments == NULL) goto cleanup;
+
+        while(token != NULL) {
+            if (segment_count == capacity) {
+                capacity *= 2;
+                route_segment_t* temp = realloc(route.segments, sizeof(route_segment_t) * capacity);
+                if(temp == NULL) goto cleanup;
+                route.segments = temp;
+            }
+
+            route.segments[segment_count].type = *token != ':' ? ROUTE_SEG_STATIC : ROUTE_SEG_PARAM;
+            route.segments[segment_count].value = *token != ':' ? strdup(token) : strdup(token + 1);
+            if(route.segments[segment_count].value == NULL) goto cleanup;
+
+            segment_count++;
+            token = strtok(NULL, delimiters);
+        }
     }
     
     route.handler = handler;
     route.path = strdup(path);
+    if(route.path == NULL) goto cleanup;
+
     route.method = method;
-    
-    printf("Registered GET\n");
+    route.segment_count = segment_count;
+
+    printf("Registered GET %s\n", path);
     fflush(stdout);
     
     app->routes[app->route_count] = route;
     app->route_count++;
+    free(source);
+
+    return;
+
+    cleanup:
+        free_route(route);
+        free(source);
 }
 
 void app_post(app_t* app, char* path, route_handler handler) {

@@ -12,35 +12,11 @@
 #include "../include/constants.h"
 #include "../include/hashmap.h"
 
-// UTILITIES
-route_t* get_route(app_t* app, char* path, char* method) {
-    route_t* routes = app->routes;
-
-    for(size_t i = 0; i < app->route_count; i++) {
-        if(
-            !(strcmp(routes[i].method, method) || 
-            strcmp(routes[i].path, path))) return &routes[i];
-        }
-
-    return NULL;
-}
-
-void free_route_segments(route_segment_t* segments, size_t segment_count) {
-    for(size_t i = 0; i < segment_count; i++) free(segments[i].value);
-    
-    free(segments);
-}
-
-void free_route(route_t route) {
-    free(route.path);
-    if(route.segments != NULL) free_route_segments(route.segments, route.segment_count);
-}
-
 void app_free(app_t* app) {
     route_t* routes = app->routes;
     
     for(size_t i = 0; i < app->route_count; i++) {
-        free_route(routes[i]);
+        route_free(&routes[i]);
     }
 
     free(routes);
@@ -70,7 +46,13 @@ void handle_client(app_t* app, int client_fd) {
 
     http_request_line_t* http_request_line = http_request->http_request_line;
 
-    route_t* route = get_route(app, http_request_line->path, http_request_line->method);
+    route_t* route = route_find(
+        app->routes,
+        app->route_count,
+        http_request_line->path,
+        http_request_line->method,
+        &http_request->params
+    );
 
     if(route == NULL) {
         response = http_response_create(NOT_FOUND, NOT_FOUND_TEXT, TEXT_PLAIN, "404 Not Found");
@@ -140,63 +122,22 @@ void app_add_route(app_t* app, char* method, char* path, route_handler handler) 
         }
     }
     
-    if(get_route(app, path, method) != NULL) {
+    if(route_find_exact(app->routes, app->route_count, path, method) != NULL) {
         printf("Route already exists");
         return;
     }
 
-    route_t route = {0};
-    char* source = NULL;
-
-    source = strdup(path);
-    if(source == NULL) goto cleanup;
-
-    size_t segment_count = 0;
-    size_t capacity = INITIAL_SEGMENT_CAPACITY;
-
-    if(strcmp(path, "/") != 0) {
-        const char* delimiters = "/";
-        char* token = strtok(source, delimiters);
-
-        route.segments = malloc(sizeof(route_segment_t) * capacity);
-        if(route.segments == NULL) goto cleanup;
-
-        while(token != NULL) {
-            if (segment_count == capacity) {
-                capacity *= 2;
-                route_segment_t* temp = realloc(route.segments, sizeof(route_segment_t) * capacity);
-                if(temp == NULL) goto cleanup;
-                route.segments = temp;
-            }
-
-            route.segments[segment_count].type = *token != ':' ? ROUTE_SEG_STATIC : ROUTE_SEG_PARAM;
-            route.segments[segment_count].value = *token != ':' ? strdup(token) : strdup(token + 1);
-            if(route.segments[segment_count].value == NULL) goto cleanup;
-
-            segment_count++;
-            token = strtok(NULL, delimiters);
-        }
+    route_t route;
+    if(!route_init(&route, method, path, handler)) {
+        perror("Failed to create route");
+        return;
     }
-    
-    route.handler = handler;
-    route.path = strdup(path);
-    if(route.path == NULL) goto cleanup;
-
-    route.method = method;
-    route.segment_count = segment_count;
 
     printf("Registered GET %s\n", path);
     fflush(stdout);
     
     app->routes[app->route_count] = route;
     app->route_count++;
-    free(source);
-
-    return;
-
-    cleanup:
-        free_route(route);
-        free(source);
 }
 
 void app_post(app_t* app, char* path, route_handler handler) {

@@ -1,32 +1,10 @@
 #ifndef APP_H
 #define APP_H
 
-#include "./http.h"
-#include "./hashmap.h"
+#include <stddef.h>
+#include "./route.h"
 
 #define INITIAL_ROUTE_CAPACITY 5
-#define INITIAL_SEGMENT_CAPACITY 5
-
-typedef http_response_t* (*route_handler)(http_request_t*);
-
-typedef enum {
-    ROUTE_SEG_STATIC,
-    ROUTE_SEG_PARAM
-} route_segment_type_t;
-
-typedef struct {
-    route_segment_type_t type;
-    char* value;
-} route_segment_t;
-
-typedef struct {
-    char* method;
-    char* path;
-    route_handler handler;
-
-    route_segment_t* segments;
-    size_t segment_count;
-} route_t;
 
 typedef struct {
     route_t* routes;

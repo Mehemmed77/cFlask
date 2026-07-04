@@ -16,36 +16,46 @@ http_response_t* home_handler(http_request_t* request) {
     char* category = hashmap_get(request->query_params, "category");
 
     if(category != NULL) {
-        printf("%s\n", category);
+        printf("query category: %s\n", category);
     }
 
-    return http_response_create(200, "OK", "text/html", "<!DOCTYPE html><html><head><title>Page Title</title></head><body><h1>This is a Heading</h1><p>This is a paragraph.</p></body></html>");
+    return http_response_create(200, "OK", "text/plain", "home");
 }
 
-void print_route_segments(app_t* app) {
-    for(size_t i = 0; i < app->route_count; i++) {
-        route_t route = app->routes[i];
+http_response_t* users_handler(http_request_t* request) {
+    (void) request;
 
-        printf("%s %s: %zu segment(s)\n", route.method, route.path, route.segment_count);
+    return http_response_create(200, "OK", "text/plain", "users index");
+}
 
-        for(size_t j = 0; j < route.segment_count; j++) {
-            route_segment_t segment = route.segments[j];
-            char* type = segment.type == ROUTE_SEG_PARAM ? "param" : "static";
+http_response_t* user_detail_handler(http_request_t* request) {
+    char* id = hashmap_get(request->params, "id");
 
-            printf("  %s: %s\n", type, segment.value);
-        }
+    if(id != NULL) {
+        printf("route param id: %s\n", id);
     }
+
+    return http_response_create(200, "OK", "text/plain", id != NULL ? id : "missing id");
+}
+
+http_response_t* post_detail_handler(http_request_t* request) {
+    char* id = hashmap_get(request->params, "id");
+    char* post_id = hashmap_get(request->params, "post_id");
+
+    if(id != NULL && post_id != NULL) {
+        printf("route params id=%s post_id=%s\n", id, post_id);
+    }
+
+    return http_response_create(200, "OK", "text/plain", "post detail");
 }
 
 int main() {
     app_t* app = app_create();
 
     app_get(app, "/", home_handler);
-    app_get(app, "/users", home_handler);
-    app_get(app, "/users/:id", home_handler);
-    app_get(app, "/users/:id/posts/:post_id", home_handler);
-
-    print_route_segments(app);
+    app_get(app, "/users", users_handler);
+    app_get(app, "/users/:id", user_detail_handler);
+    app_get(app, "/users/:id/posts/:post_id", post_detail_handler);
 
     app_run(app, 8081);
 

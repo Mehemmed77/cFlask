@@ -13,7 +13,10 @@ HTTP_SRC = \
 	src/http_utils.c \
 	src/libraries/hashmap.c \
 	src/route.c \
-	src/app.c
+	src/app.c \
+	src/app_routes.c \
+	src/app_middleware.c \
+	src/app_server.c
 
 SERVER_SRC = \
 	src/server.c \

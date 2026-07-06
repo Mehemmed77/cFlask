@@ -12,6 +12,33 @@
 #include "../include/app.h"
 #include "../include/hashmap.h"
 
+bool logger_middleware(http_request_t* request, http_response_t** response) {
+    (void) response;
+
+    printf(
+        "middleware log: %s %s\n",
+        request->http_request_line->method,
+        request->http_request_line->path
+    );
+
+    return true;
+}
+
+bool block_secret_middleware(http_request_t* request, http_response_t** response) {
+    if(strcmp(request->http_request_line->path, "/secret") == 0) {
+        *response = http_response_create(
+            403,
+            "Forbidden",
+            "text/plain",
+            "blocked by middleware"
+        );
+
+        return false;
+    }
+
+    return true;
+}
+
 http_response_t* home_handler(http_request_t* request) {
     char* category = hashmap_get(request->query_params, "category");
 
@@ -49,13 +76,23 @@ http_response_t* post_detail_handler(http_request_t* request) {
     return http_response_create(200, "OK", "text/plain", "post detail");
 }
 
+http_response_t* secret_handler(http_request_t* request) {
+    (void) request;
+
+    return http_response_create(200, "OK", "text/plain", "secret");
+}
+
 int main() {
     app_t* app = app_create();
+
+    app_use(app, logger_middleware);
+    app_use(app, block_secret_middleware);
 
     app_get(app, "/", home_handler);
     app_get(app, "/users", users_handler);
     app_get(app, "/users/:id", user_detail_handler);
     app_get(app, "/users/:id/posts/:post_id", post_detail_handler);
+    app_get(app, "/secret", secret_handler);
 
     app_run(app, 8081);
 

@@ -20,6 +20,15 @@ void app_free(app_t* app) {
     }
 
     free(routes);
+    free(app->middleware);
+}
+
+bool run_middlewares(app_t* app, http_request_t* request, http_response_t** response) {
+    for(size_t i = 0; i < app->middleware_count; i++) {
+        if(!(app->middleware[i](request, response))) return false;
+    }
+
+    return true;
 }
 
 void handle_client(app_t* app, int client_fd) {
@@ -56,37 +65,41 @@ void handle_client(app_t* app, int client_fd) {
 
     if(route == NULL) {
         response = http_response_create(NOT_FOUND, NOT_FOUND_TEXT, TEXT_PLAIN, "404 Not Found");
+        goto send_response;
     }
 
-    else response = route->handler(http_request);
+    if(!run_middlewares(app, http_request, &response)) goto send_response;
 
-    if (response == NULL) {
-        perror("Failed to create HTTP response");
-        goto cleanup;
-    }
+    response = route->handler(http_request);
 
-    raw_response = http_response_serialize(response);
-
-    if (raw_response == NULL) {
-        perror("Failed to serialize HTTP response");
-        goto cleanup;
-    }
-
-    response_length = strlen(raw_response);
-    total_sent = 0;
-
-    while (total_sent < response_length) {
-        ssize_t bytes_sent = send(client_fd,
-                                  raw_response + total_sent,
-                                  response_length - total_sent,
-                                  0);
-        if (bytes_sent < 0) {
-            perror("Failed to send HTTP response");
+    send_response:
+        if (response == NULL) {
+            perror("Failed to create HTTP response");
             goto cleanup;
         }
 
-        total_sent += (size_t) bytes_sent;
-    }
+        raw_response = http_response_serialize(response);
+
+        if (raw_response == NULL) {
+            perror("Failed to serialize HTTP response");
+            goto cleanup;
+        }
+
+        response_length = strlen(raw_response);
+        total_sent = 0;
+
+        while (total_sent < response_length) {
+            ssize_t bytes_sent = send(client_fd,
+                                    raw_response + total_sent,
+                                    response_length - total_sent,
+                                    0);
+            if (bytes_sent < 0) {
+                perror("Failed to send HTTP response");
+                goto cleanup;
+            }
+
+            total_sent += (size_t) bytes_sent;
+        }
 
     cleanup:
         if (client_fd >= 0) {
@@ -151,10 +164,24 @@ void app_get(app_t* app, char* path, route_handler handler) {
 app_t* app_create() {
     app_t* app = malloc(sizeof(app_t));
 
-    app->routes = 0;
+    app->route_count = 0;
     app->route_capacity = INITIAL_ROUTE_CAPACITY;
     app->routes = malloc(INITIAL_ROUTE_CAPACITY * sizeof(route_t));
-    app->route_count = 0;
+    
+    if(app->routes == NULL) {
+        perror("Failed to allocate memory for routes");
+        return NULL;
+    }
+
+    app->middleware_count = 0;
+    app->middleware_capacity = INITIAL_MIDDLEWARE_CAPACITY;
+    app->middleware = malloc(INITIAL_MIDDLEWARE_CAPACITY * sizeof(middleware_handler));
+
+    if(app->middleware == NULL) {
+        perror("Failed to allocate memory for middleware");
+        free(app->routes);
+        return NULL;
+    }
 
     return app;
 }
@@ -198,4 +225,32 @@ void app_run(app_t* app, int PORT) {
 
         handle_client(app, client_fd);
     }
+}
+
+bool double_middleware_capacity(app_t* app) {
+    size_t new_capacity = app->middleware_capacity * 2;
+    middleware_handler* temp = realloc(
+        app->middleware,
+        new_capacity * sizeof(middleware_handler)
+    );
+
+    if(temp == NULL) {
+        return false;
+    }
+
+    app->middleware = temp;
+    app->middleware_capacity = new_capacity;
+
+    return true;
+}
+
+void app_use(app_t* app, middleware_handler middleware) {
+    if(app->middleware_count >= app->middleware_capacity) {
+        if(!double_middleware_capacity(app)) {
+            perror("Failed to reallocate memory for middleware");
+            return;
+        }
+    }
+
+    app->middleware[app->middleware_count++] = middleware;
 }

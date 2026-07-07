@@ -19,6 +19,7 @@ char* http_response_serialize(const http_response_t* response) {
     if (!response_buffer) {
         return NULL;
     }
+    
 
     snprintf(response_buffer, header_length + 1,
         "HTTP/1.1 %u %s\r\nContent-Type: %s\r\nContent-Length: %zu\r\n\r\n%s",

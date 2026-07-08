@@ -202,7 +202,7 @@ http_request_t* http_request_create(const char* raw_request, size_t raw_request_
         free(body);
         hashmap_destroy(map);
         http_request_line_free(request_line);
-        http_request_headers_free(headers, temp_size);
+        headers_free(headers, temp_size);
         free_http_bounds(req);
         return NULL;
 }

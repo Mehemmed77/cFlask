@@ -53,7 +53,7 @@ void handle_client(app_t* app, int client_fd) {
     );
 
     if(route == NULL) {
-        response = http_response_create(NOT_FOUND, NOT_FOUND_TEXT, TEXT_PLAIN, "404 Not Found");
+        response = http_not_found_response("404 Not Found");
         goto send_response;
     }
 

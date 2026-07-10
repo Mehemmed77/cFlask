@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include "hashmap.h"
 
-#define INITIAL_HEADER_CAPACITY 5;
+#define INITIAL_HEADER_CAPACITY 5
 
 typedef struct {
     const char* start;
@@ -58,14 +58,12 @@ typedef struct {
 
 char* http_response_serialize(const http_response_t* response);
 
-http_response_t* http_response_create(
-    int status,
-    const char *text,
-    const char *type,
-    const char *body
-);
-
 void http_response_free(http_response_t* response);
+
+http_response_t* http_text_response(const char* body);
+http_response_t* http_json_response(const char* json);
+http_response_t* http_not_found_response(const char* body);
+// http_response_t* http_html_response(const char* html);
 
 /* Request */
 

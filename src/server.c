@@ -74,6 +74,7 @@ http_response_t* post_detail_handler(http_request_t* request) {
         printf("route params id=%s post_id=%s\n", id, post_id);
     }
     
+    
     return http_text_response(id != NULL ? id : "post detail");
 }
 

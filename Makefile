@@ -16,7 +16,8 @@ HTTP_SRC = \
 	src/app.c \
 	src/app_routes.c \
 	src/app_middleware.c \
-	src/app_server.c
+	src/app_server.c \
+	src/template.c
 
 SERVER_SRC = \
 	src/server.c \

@@ -11,6 +11,7 @@
 #include "../include/http.h"
 #include "../include/app.h"
 #include "../include/hashmap.h"
+#include "../include/template.h"
 
 // bool logger_middleware(http_request_t* request, http_response_t** response) {
 //     (void) response;
@@ -89,7 +90,6 @@ int main() {
 
     // app_use(app, logger_middleware);
     // app_use(app, block_secret_middleware);
-
     app_get(app, "/", home_handler);
     app_get(app, "/users", users_handler);
     app_get(app, "/users/:id", user_detail_handler);

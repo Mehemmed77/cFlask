@@ -56,8 +56,11 @@ bool validate_filename(const char* filename) {
     return true;
 }
 
-bool file_exists(const char* filename) {
-    bool flag = false;
+http_response_t* render_template(const char* filename) {
+    if(!validate_filename(filename)) return NULL;
+
+    http_response_t* response = NULL;
+
     size_t length = snprintf(NULL, 0, "templates/%s", filename) + 1;
 
     char* path = malloc(sizeof(char) * length);
@@ -69,25 +72,41 @@ bool file_exists(const char* filename) {
 
     snprintf(path, length, "templates/%s", filename);
 
-    FILE *f = fopen(path, "r");
+    FILE* f = fopen(path, "rb");
 
     if(f == NULL) {
-        perror("NO");
+        response = http_not_found_response("Template not found");
         goto cleanup;
     }
 
-    else{
-        printf("YES");
+    size_t capacity = 4096;
+    size_t byte_length = 0;
+    char* buffer = malloc(capacity);
+
+    while(1) {
+        if(byte_length + 1024 + 1 > capacity) {
+            capacity *= 2;
+            buffer = realloc(buffer, capacity);
+        }
+
+        size_t n = fread(buffer + byte_length, 1, 1024, f);
+        byte_length += n;
+
+        if(n < 1024) {
+            if(ferror(f)) {
+
+            }
+
+            break;
+        }
     }
 
-    fflush(stdout);
+    buffer[byte_length] = '\0';
+
+    response = http_html_response(buffer);
 
     cleanup:
         free(path);
-        return flag;
-}
-
-http_response_t* render_template(const char* filename) {
-    file_exists(filename);
-    return NULL;
+        if(f != NULL) fclose(f);
+        return response;
 }

@@ -63,8 +63,7 @@ void http_response_free(http_response_t* response);
 http_response_t* http_text_response(const char* body);
 http_response_t* http_json_response(const char* json);
 http_response_t* http_not_found_response(const char* body);
-// http_response_t* http_html_response(const char* html);
-
+http_response_t* http_html_response(const char* html);
 /* Request */
 
 http_request_t* http_request_create(

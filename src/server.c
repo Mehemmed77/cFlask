@@ -53,7 +53,7 @@ http_response_t* home_handler(http_request_t* request) {
 http_response_t* users_handler(http_request_t* request) {
     (void) request;
     
-    return http_text_response("users index");
+    return render_template("index.html");
 }
 
 http_response_t* user_detail_handler(http_request_t* request) {
@@ -96,7 +96,7 @@ int main() {
     app_get(app, "/users/:id/posts/:post_id", post_detail_handler);
     app_get(app, "/secret", secret_handler);
 
-    app_run(app, 8081);
+    app_run(app, 8080);
 
     return 0;
 }

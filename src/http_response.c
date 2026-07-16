@@ -66,16 +66,16 @@ bool set_header(http_response_t* response, const char* name, const char* value) 
     return true;
 }
 
-bool double_response_buffer(char* response_buffer, size_t* capacity, size_t optional_capacity) {
+bool double_response_buffer(char** response_buffer, size_t* capacity, size_t optional_capacity) {
     size_t new_capacity = optional_capacity == 0 ? *capacity * 2 : optional_capacity;
-    char* temp = realloc(response_buffer, sizeof(char) * new_capacity);
+    char* temp = realloc(*response_buffer, sizeof(char) * new_capacity);
 
     if(temp == NULL) {
         return false;
     }
 
     *capacity = new_capacity;
-    response_buffer = temp;
+    *response_buffer = temp;
 
     return true;
 }
@@ -105,7 +105,10 @@ char* http_response_serialize(const http_response_t* response) {
         len = snprintf(NULL, 0, "%s: %s\r\n", name, value);
 
         if(total_len + len + 1 >= capacity) {
-            if(!double_response_buffer(response_buffer, &capacity, 0)) free(response_buffer);
+            if(!double_response_buffer(&response_buffer, &capacity, 0)) {
+                free(response_buffer);
+                return NULL;
+            }
         }
 
         snprintf(response_buffer + total_len, len + 1, "%s: %s\r\n", name, value);
@@ -116,7 +119,10 @@ char* http_response_serialize(const http_response_t* response) {
     len = snprintf(NULL, 0, "\r\n%s", body);
 
     if(total_len + len + 1 >= capacity) {
-        if(!double_response_buffer(response_buffer, &capacity, total_len + len + 1)) free(response_buffer);
+        if(!double_response_buffer(&response_buffer, &capacity, total_len + len + 1)) {
+            free(response_buffer);
+            return NULL;
+        }
     }
 
     snprintf(response_buffer + total_len, len + 1, "\r\n%s", body);
@@ -124,13 +130,13 @@ char* http_response_serialize(const http_response_t* response) {
     return response_buffer;
 }
 
-http_response_t* http_not_found_response(const char* body) {
+http_response_t* create_http_response(int status_code, char* status_text, const char* body, char* content_type) {
     http_response_t* response = malloc(sizeof(http_response_t));
 
     if(response == NULL) return NULL;
 
-    response->status_code = NOT_FOUND;
-    response->status_text = strdup(NOT_FOUND_TEXT);
+    response->status_code = status_code;
+    response->status_text = strdup(status_text);
     response->body = strdup(body ? body : "");
 
     if(response->status_text == NULL || response->body == NULL) goto cleanup;
@@ -145,7 +151,7 @@ http_response_t* http_not_found_response(const char* body) {
     char content_length[32];
     snprintf(content_length, sizeof(content_length), "%zu", strlen(response->body));
 
-    if(!set_header(response, "Content-Type", TEXT_PLAIN)) goto cleanup;
+    if(!set_header(response, "Content-Type", content_type)) goto cleanup;
     if(!set_header(response, "Content-Length", content_length)) goto cleanup;
 
     return response;
@@ -153,68 +159,22 @@ http_response_t* http_not_found_response(const char* body) {
     cleanup:
         http_response_free(response);
         return NULL;
+}
+
+http_response_t* http_not_found_response(const char* body) {
+    return create_http_response(NOT_FOUND, NOT_FOUND_TEXT, body, TEXT_PLAIN);
 }
 
 http_response_t* http_text_response(const char* body) {
-    http_response_t* response = malloc(sizeof(http_response_t));
+    return create_http_response(OK, OK_TEXT, body, TEXT_PLAIN);
+}
 
-    if(response == NULL) return NULL;
-
-    response->status_code = OK;
-    response->status_text = strdup(OK_TEXT);
-    response->body = strdup(body ? body : "");
-
-    if(response->status_text == NULL || response->body == NULL) goto cleanup;
-
-    response->headers = malloc(sizeof(http_header_t*) * INITIAL_HEADER_CAPACITY);
-
-    response->header_capacity = INITIAL_HEADER_CAPACITY;
-    response->header_count = 0;
-
-    if(response->headers == NULL) goto cleanup;
-
-    char content_length[32];
-    snprintf(content_length, sizeof(content_length), "%zu", strlen(response->body));
-
-    if(!set_header(response, "Content-Type", TEXT_PLAIN)) goto cleanup;
-    if(!set_header(response, "Content-Length", content_length)) goto cleanup;
-
-    return response;
-
-    cleanup:
-        http_response_free(response);
-        return NULL;
+http_response_t* http_html_response(const char* html) {
+    return create_http_response(OK, OK_TEXT, html, TEXT_HTML);
 }
 
 http_response_t* http_json_response(const char* json) {
-    http_response_t* response = malloc(sizeof(http_response_t));
-
-    if(response == NULL) return NULL;
-
-    response->status_code = OK;
-    response->status_text = strdup(OK_TEXT);
-    response->body = strdup(json ? json : "");
-
-    if(response->status_text == NULL || response->body == NULL) goto cleanup;
-
-    response->headers = malloc(sizeof(http_header_t*) * INITIAL_HEADER_CAPACITY);
-
-    response->header_capacity = INITIAL_HEADER_CAPACITY;
-    response->header_count = 0;
-
-    if(response->headers == NULL) goto cleanup;
-
-    char content_length[32];
-    snprintf(content_length, sizeof(content_length), "%zu", strlen(response->body));
-
-    if(!set_header(response, "Content-Type", APPLICATION_JSON)) goto cleanup;
-    if(!set_header(response, "Content-Length", content_length)) goto cleanup;
-
-    return response;
-
-    cleanup:
-        http_response_free(response);
-        return NULL;
+    return create_http_response(OK, OK_TEXT, json, APPLICATION_JSON);
 }
 
 void http_response_free(http_response_t* response) {
